@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Knowledge Quiz</title>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --text: #e0e0e0;
+      --accent: #00d4ff;
+      --card: #1a1a1a;
+      --error: #ff4d4d;
+      --success: #00ff9d;
+      --gold: #ffd700;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    .container {
+      width: 100%; max-width: 600px;
+      background: var(--card);
+      border-radius: 16px;
+      padding: 40px 30px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+      border: 1px solid #333;
+      position: relative;
+      z-index: 10;
+    }
+
+    h1 { text-align:center; margin-bottom:30px; color:var(--accent); font-size:2.4rem; }
+
+    .start-screen, .quiz-screen, .result-screen { transition: all 0.4s ease; }
+    .hidden { display: none !important; }
+
+    label { display:block; margin-bottom:10px; font-size:1.1rem; }
+
+    input[type="text"], input[type="email"] {
+      width:100%; padding:14px; margin-bottom:20px;
+      border:2px solid #444; border-radius:8px;
+      background:#222; color:var(--text); font-size:1.1rem;
+    }
+
+    input:focus {
+      outline:none; border-color:var(--accent);
+      box-shadow:0 0 0 3px rgba(0,212,255,0.2);
+    }
+
+    .error, .info, .success-msg {
+      font-size:0.95rem; margin-top:10px; margin-bottom:20px;
+      display:block; text-align:center;
+    }
+    .error { color:var(--error); }
+    .info { color:var(--accent); }
+    .success-msg { color:var(--success); font-weight:bold; }
+
+    button {
+      width:100%; padding:16px; background:var(--accent); color:#000;
+      border:none; border-radius:8px; font-size:1.2rem; font-weight:bold;
+      cursor:pointer; transition:all 0.3s;
+    }
+
+    button:hover { background:#00b8e0; transform:translateY(-2px); }
+    button:disabled { background:#555; cursor:not-allowed; }
+
+    .question { margin-bottom:30px; }
+    .question h3 { margin-bottom:15px; font-size:1.3rem; line-height:1.4; }
+
+    .option {
+      display:block; padding:14px 18px; margin:10px 0;
+      background:#222; border:2px solid #444; border-radius:10px;
+      cursor:pointer; transition:all 0.25s;
+      color: var(--text);
+    }
+
+    .option:hover:not(.submitted .option) {
+      background:#2a2a2a;
+      border-color:#666;
+    }
+
+    input[type="radio"] { display:none; }
+
+    /* === SELECTED ANSWER - BLUE BORDER === */
+    input[type="radio"]:checked + .option {
+      border: 3px solid var(--accent) !important;
+      background: rgba(0, 212, 255, 0.07);
+      box-shadow: 0 0 12px rgba(0, 212, 255, 0.35);
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Stronger blue after submit (user's choice remains visible) */
+    .submitted input[type="radio"]:checked + .option {
+      border: 4px solid var(--accent) !important;
+      background: rgba(0, 212, 255, 0.12);
+      box-shadow: 0 0 16px rgba(0, 212, 255, 0.5);
+    }
+
+    /* Correct answer after submit (green) */
+    .submitted .option[data-correct="true"] {
+      border: 3px solid var(--success);
+      background: rgba(0, 255, 157, 0.10);
+      box-shadow: 0 0 12px rgba(0, 255, 157, 0.4);
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    .progress { height:8px; background:#333; border-radius:4px; margin:20px 0; overflow:hidden; }
+    .progress-bar { height:100%; width:0%; background:var(--accent); transition:width 0.4s ease; }
+
+    .result-screen h2 { text-align:center; margin-bottom:20px; }
+    .score { font-size:3.5rem; text-align:center; margin:20px 0; color:var(--accent); }
+
+    .congrats {
+      font-size:2.2rem; text-align:center; color:var(--gold); margin:20px 0;
+      font-weight:bold; animation:pulse 2s infinite;
+    }
+
+    @keyframes pulse { 0%{transform:scale(1);} 50%{transform:scale(1.05);} 100%{transform:scale(1);} }
+
+    .feedback { text-align:center; font-size:1.2rem; margin:20px 0; }
+    .restart-btn { margin-top:30px; }
+
+    .balloons-container {
+      position:fixed; top:0; left:0; width:100%; height:100%;
+      pointer-events:none; z-index:5; overflow:hidden;
+    }
+
+    .balloon {
+      position:absolute; bottom:-150px; width:60px; height:80px;
+      border-radius:50% 50% 50% 50%/60% 60% 40% 40%;
+      animation: rise linear infinite; opacity:0.9;
+    }
+
+    .balloon::before {
+      content:''; position:absolute; bottom:-20px; left:50%; width:2px; height:100px;
+      background:rgba(255,255,255,0.6); transform:translateX(-50%);
+    }
+
+    @keyframes rise { 0%{transform:translateY(0) rotate(0deg);} 100%{transform:translateY(-120vh) rotate(360deg);} }
+  </style>
+</head>
+<body>
+
+<div class="balloons-container" id="balloons"></div>
+
+<div class="container">
+  <h1>Knowledge Quiz</h1>
+
+  <div class="start-screen" id="startScreen">
+    <form id="startForm">
+      <label for="userName">Please enter your full name to start:</label>
+      <input type="text" id="userName" placeholder="John Doe" required />
+      <span class="error hidden" id="nameError">Please enter a valid full name (at least first and last name).</span>
+      <button type="submit">Start Quiz</button>
+    </form>
+  </div>
+
+  <div class="quiz-screen hidden" id="quizScreen">
+    <div class="progress">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <form id="quizForm">
+      <!-- Questions injected here -->
+      <button type="submit" id="submitBtn" disabled>Submit Answers</button>
+    </form>
+  </div>
+
+  <div class="result-screen hidden" id="resultScreen">
+    <h2>Your Results</h2>
+    <div class="score" id="scoreText">0/0</div>
+    <div class="congrats hidden" id="congratsText"></div>
+    <p class="feedback" id="feedbackText"></p>
+    <p class="info" id="attemptsInfo"></p>
+
+    <div id="emailSubmitSection" class="hidden">
+      <form id="emailForm">
+        <label for="userEmail">Submit your email to record your perfect score:</label>
+        <input type="email" id="userEmail" placeholder="yourname@example.com" required />
+        <span class="error hidden" id="emailError">Please enter a valid email.</span>
+        <button type="submit">Submit Email</button>
+      </form>
+      <p id="saveStatus" class="hidden success-msg"></p>
+    </div>
+
+    <button class="restart-btn" id="actionBtn" onclick="handleAction()">Take Quiz Again</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+// Firebase Initialization (compat version)
+const firebaseConfig = {
+  apiKey: "AIzaSyAk_pZi_fGbNwRCY04pvfxrSPfhH9fY4bs",
+  authDomain: "elon-foundation-quizer.firebaseapp.com",
+  projectId: "elon-foundation-quizer",
+  storageBucket: "elon-foundation-quizer.firebasestorage.app",
+  messagingSenderId: "754628285288",
+  appId: "1:754628285288:web:87cde189cd4ee844657cdd",
+  measurementId: "G-9NV11YW8LB"
+};
+
+firebase.initializeApp(firebaseConfig);
+const analytics = firebase.analytics();
+const db = firebase.firestore();
+
+// ─────────────────────────────────────────────
+// QUIZ DATA & LOGIC
+// ─────────────────────────────────────────────
+const quizData = [
+  { question: "Where is Musk Foundation located?", options: ["Cape Town", "Washington DC", "Texas", "Florida"], correct: 2 },
+  { question: "What is the first major company that Musk help grow?", options: ["SpaceX", "Zip2", "Tesla", "Paypal"], correct: 1 },
+  { question: "What year was SpaceX founded?", options: ["2002","1999","1995","2005"], correct: 0 },
+  { question: "What percentage of assets are private foundations like the Musk Foundation required to distribute yearly?", options: ["1%", "5%", "10%", "20%"], correct: 1 },
+  { question: "Which of the following is NOT a focus area of the Musk Foundation?", options: ["Renewable Energy", "Space Exploration", "Education", "Animal Welfare"], correct: 3 },
+];
+
+const totalQuestions = quizData.length;
+const MAX_ATTEMPTS = 100;
+let currentName = "";
+let userAnswers = new Array(totalQuestions).fill(null);
+let attempts = parseInt(localStorage.getItem('quizAttempts') || '0');
+
+const startScreen   = document.getElementById("startScreen");
+const quizScreen    = document.getElementById("quizScreen");
+const resultScreen  = document.getElementById("resultScreen");
+const startForm     = document.getElementById("startForm");
+const nameInput     = document.getElementById("userName");
+const nameError     = document.getElementById("nameError");
+const quizForm      = document.getElementById("quizForm");
+const submitBtn     = document.getElementById("submitBtn");
+const progressBar   = document.getElementById("progressBar");
+const congratsText  = document.getElementById("congratsText");
+const attemptsInfo  = document.getElementById("attemptsInfo");
+const actionBtn     = document.getElementById("actionBtn");
+const emailSection  = document.getElementById("emailSubmitSection");
+const emailForm     = document.getElementById("emailForm");
+const emailInput    = document.getElementById("userEmail");
+const emailError    = document.getElementById("emailError");
+const saveStatus    = document.getElementById("saveStatus");
+
+function isValidName(name) {
+  const trimmed = name.trim();
+  return trimmed.length >= 3 && trimmed.split(/\s+/).length >= 2;
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+function showScreen(screen) {
+  startScreen.classList.add("hidden");
+  quizScreen.classList.add("hidden");
+  resultScreen.classList.add("hidden");
+  screen.classList.remove("hidden");
+}
+
+function loadQuestions() {
+  quizForm.innerHTML = "";
+  quizData.forEach((q, i) => {
+    const div = document.createElement("div");
+    div.className = "question";
+    div.innerHTML = `<h3>${i+1}. ${q.question}</h3>`;
+
+    q.options.forEach((opt, j) => {
+      const label = document.createElement("label");
+      label.className = "option";
+      
+      if (j === q.correct) {
+        label.dataset.correct = "true";
+      }
+      
+      label.innerHTML = `
+        <input type="radio" name="q${i}" value="${j}" ${userAnswers[i] === j ? "checked" : ""}>
+        ${opt}
+      `;
+      div.appendChild(label);
+    });
+
+    quizForm.appendChild(div);
+  });
+  quizForm.appendChild(submitBtn);
+}
+
+function updateProgress() {
+  const answered = userAnswers.filter(a => a !== null).length;
+  progressBar.style.width = (answered / totalQuestions * 100) + "%";
+  submitBtn.disabled = answered < totalQuestions;
+}
+
+function createBalloons() {
+  const container = document.getElementById("balloons");
+  container.innerHTML = '';
+  const colors = ['#ff0000','#00ff00','#0000ff','#ffff00','#ff00ff','#00ffff','#ff8000'];
+  for (let i = 0; i < 30; i++) {
+    const b = document.createElement("div");
+    b.className = "balloon";
+    b.style.left = Math.random()*100 + "vw";
+    b.style.background = colors[Math.floor(Math.random()*colors.length)];
+    b.style.animationDuration = (8 + Math.random()*12) + "s";
+    b.style.animationDelay = Math.random()*5 + "s";
+    container.appendChild(b);
+  }
+}
+
+quizForm.addEventListener("change", e => {
+  const radio = e.target;
+  if (radio.type === "radio") {
+    const idx = parseInt(radio.name.replace("q",""));
+    userAnswers[idx] = parseInt(radio.value);
+    updateProgress();
+  }
+});
+
+startForm.addEventListener("submit", e => {
+  e.preventDefault();
+  const name = nameInput.value.trim();
+  if (!isValidName(name)) {
+    nameError.classList.remove("hidden");
+    return;
+  }
+  if (attempts >= MAX_ATTEMPTS) {
+    alert("Maximum attempts reached.");
+    return;
+  }
+  nameError.classList.add("hidden");
+  currentName = name;
+  showScreen(quizScreen);
+  loadQuestions();
+  updateProgress();
+});
+
+quizForm.addEventListener("submit", e => {
+  e.preventDefault();
+
+  let score = 0;
+  quizData.forEach((q,i) => { if (userAnswers[i] === q.correct) score++; });
+
+  const percent = Math.round((score / totalQuestions) * 100);
+  let feedback = percent >= 80 ? "Excellent! You're a real pro." :
+                 percent >= 50 ? "Good job — keep learning!" :
+                 "Room for improvement — try again!";
+
+  document.getElementById("scoreText").textContent = `${score}/${totalQuestions} (${percent}%)`;
+  document.getElementById("feedbackText").textContent = feedback;
+
+  attempts++;
+  localStorage.setItem('quizAttempts', attempts);
+  attemptsInfo.textContent = `Attempts used: ${attempts}/${MAX_ATTEMPTS}`;
+
+  const isPerfect = percent === 100;
+
+  if (isPerfect) {
+    congratsText.textContent = `Congratulations, ${currentName}!`;
+    congratsText.classList.remove("hidden");
+    createBalloons();
+    actionBtn.classList.add("hidden");
+    emailSection.classList.remove("hidden");
+  } else {
+    congratsText.classList.add("hidden");
+    document.getElementById("balloons").innerHTML = '';
+    actionBtn.textContent = "Take Quiz Again";
+    actionBtn.classList.remove("hidden");
+    emailSection.classList.add("hidden");
+  }
+
+  if (attempts >= MAX_ATTEMPTS) {
+    actionBtn.disabled = true;
+    actionBtn.textContent = "No more attempts available";
+    attemptsInfo.style.color = "var(--error)";
+  }
+
+  document.querySelectorAll('.question').forEach(q => q.classList.add("submitted"));
+
+  showScreen(resultScreen);
+});
+
+function handleAction() {
+  if (attempts >= MAX_ATTEMPTS) {
+    alert("You've used all attempts.");
+    return;
+  }
+  userAnswers.fill(null);
+  currentName = "";
+  nameInput.value = "";
+  congratsText.classList.add("hidden");
+  document.getElementById("balloons").innerHTML = '';
+  showScreen(startScreen);
+}
+
+// Save perfect score
+emailForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const email = emailInput.value.trim();
+  if (!isValidEmail(email)) {
+    emailError.classList.remove("hidden");
+    return;
+  }
+  emailError.classList.add("hidden");
+
+  saveStatus.textContent = "Submitting...";
+  saveStatus.classList.remove("hidden");
+
+  try {
+    await db.collection("perfectScores").add({
+      name: currentName,
+      email: email,
+      score: totalQuestions,
+      total: totalQuestions,
+      percent: 100,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    saveStatus.textContent = "Success! Please continousely check your email inbox or spam for updates.";
+    saveStatus.classList.add("success-msg");
+    emailForm.classList.add("hidden");
+  } catch (error) {
+    console.error("Error, couldn't submit score please try again:", error);
+    saveStatus.textContent = "Error saving record. Please try again or check console.";
+    saveStatus.style.color = "var(--error)";
+  }
+});
+</script>
+</body>
+</html>
