@@ -352,9 +352,9 @@ quizForm.addEventListener("submit", e => {
   quizData.forEach((q,i) => { if (userAnswers[i] === q.correct) score++; });
 
   const percent = Math.round((score / totalQuestions) * 100);
-  let feedback = percent >= 80 ? "Excellent! You're a real pro." :
-                 percent >= 50 ? "Good job — keep learning!" :
-                 "Room for improvement — try again!";
+  let feedback = percent >= 80 ? "Great attempt" :
+                 percent >= 50 ? "Good — try again" :
+                 "Try again!";
 
   document.getElementById("scoreText").textContent = `${score}/${totalQuestions} (${percent}%)`;
   document.getElementById("feedbackText").textContent = feedback;
