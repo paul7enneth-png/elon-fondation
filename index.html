@@ -231,7 +231,7 @@ const quizData = [
 ];
 
 const totalQuestions = quizData.length;
-const MAX_ATTEMPTS = 100;
+const MAX_ATTEMPTS = 3;
 let currentName = "";
 let userAnswers = new Array(totalQuestions).fill(null);
 let attempts = parseInt(localStorage.getItem('quizAttempts') || '0');
