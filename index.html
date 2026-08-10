@@ -93,7 +93,7 @@
     input[type="radio"] { display:none; }
 
     /* === SELECTED ANSWER - BLUE BORDER === */
-    input[type="radio"]:checked + .option {
+    .option.selected {
       border: 3px solid var(--accent) !important;
       background: rgba(0, 212, 255, 0.07);
       box-shadow: 0 0 12px rgba(0, 212, 255, 0.35);
@@ -102,7 +102,7 @@
     }
 
     /* Stronger blue after submit (user's choice remains visible) */
-    .submitted input[type="radio"]:checked + .option {
+    .submitted .option.selected {
       border: 4px solid var(--accent) !important;
       background: rgba(0, 212, 255, 0.12);
       box-shadow: 0 0 16px rgba(0, 212, 255, 0.5);
@@ -162,7 +162,7 @@
   <div class="start-screen" id="startScreen">
     <form id="startForm">
       <label for="userName">Please enter your full name to start:</label>
-      <input type="text" id="userName" placeholder="John Doe" required />
+      <input type="text" id="userName" placeholder="Firstname Lastname" required />
       <span class="error hidden" id="nameError">Please enter a valid full name (at least first and last name).</span>
       <button type="submit">Start Quiz</button>
     </form>
@@ -223,11 +223,11 @@ const db = firebase.firestore();
 // QUIZ DATA & LOGIC
 // ─────────────────────────────────────────────
 const quizData = [
-  { question: "Where is Musk Foundation located?", options: ["Cape Town", "Washington DC", "Texas", "Florida"], correct: 2 },
-  { question: "What is the first major company that Musk help grow?", options: ["SpaceX", "Zip2", "Tesla", "Paypal"], correct: 1 },
-  { question: "What year was SpaceX founded?", options: ["2002","1999","1995","2005"], correct: 0 },
-  { question: "What percentage of assets are private foundations like the Musk Foundation required to distribute yearly?", options: ["1%", "5%", "10%", "20%"], correct: 1 },
-  { question: "Which of the following is NOT a focus area of the Musk Foundation?", options: ["Renewable Energy", "Space Exploration", "Education", "Animal Welfare"], correct: 3 },
+  { question: "Where is Musk Foundation located?", options: ["United States", "India", "Australia", "Russia"], correct: 2 },
+  { question: "What is the main product that Tesla makes?", options: ["Phones", "Electric Cars", "Boats", "Burgers"], correct: 1 },
+  { question: "What is the name of the electric truck made by Tesla?", options: ["Monstertruck", "Hilux", "Ford Ranger", "Cybertruck"], correct: 3 },
+  { question: "What major social media platform did Elon Musk buy in 2022?", options: ["Twitter", "Facebook", "Instagram", "LinkedIn"], correct: 0 },
+  { question: "Who is the chief boss of Tesla?", options: ["Elon Musk", "Jeff Bezos", "Bill Gates", "Steve Jobs"], correct: 0 },
 ];
 
 const totalQuestions = quizData.length;
@@ -280,11 +280,14 @@ function loadQuestions() {
     q.options.forEach((opt, j) => {
       const label = document.createElement("label");
       label.className = "option";
-      
+
       if (j === q.correct) {
         label.dataset.correct = "true";
       }
-      
+      if (userAnswers[i] === j) {
+        label.classList.add("selected"); // preserve highlight if re-rendered
+      }
+
       label.innerHTML = `
         <input type="radio" name="q${i}" value="${j}" ${userAnswers[i] === j ? "checked" : ""}>
         ${opt}
@@ -323,6 +326,12 @@ quizForm.addEventListener("change", e => {
   if (radio.type === "radio") {
     const idx = parseInt(radio.name.replace("q",""));
     userAnswers[idx] = parseInt(radio.value);
+
+    // clear "selected" from every option in this question, then mark the chosen one
+    const questionDiv = radio.closest(".question");
+    questionDiv.querySelectorAll(".option").forEach(opt => opt.classList.remove("selected"));
+    radio.closest(".option").classList.add("selected");
+
     updateProgress();
   }
 });
@@ -352,9 +361,9 @@ quizForm.addEventListener("submit", e => {
   quizData.forEach((q,i) => { if (userAnswers[i] === q.correct) score++; });
 
   const percent = Math.round((score / totalQuestions) * 100);
-  let feedback = percent >= 80 ? "Great attempt" :
-                 percent >= 50 ? "Good — try again" :
-                 "Try again!";
+  let feedback = percent >= 80 ? "Excellent! You're a real pro." :
+                 percent >= 50 ? "Good job — keep learning!" :
+                 "Room for improvement — try again!";
 
   document.getElementById("scoreText").textContent = `${score}/${totalQuestions} (${percent}%)`;
   document.getElementById("feedbackText").textContent = feedback;
